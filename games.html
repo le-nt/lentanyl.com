@@ -41,14 +41,13 @@
   .list button:hover, .list button:focus-visible, .list button[aria-current="true"] { background: #000; color: #fff; outline: none; }
   .list button[aria-current="true"] .t::before { content: "> "; position: absolute; margin-left: -14px; }
   .empty { padding: 14px; font-size: 12px; }
-  .src { flex: none; border-top: 2px solid #000; padding: 4px 14px; font-size: 11px; word-break: break-all; }
 
   #play .body { flex: 1; min-height: 0; display: flex; flex-direction: column; }
   .tools { flex: none; display: flex; border-bottom: 2px solid #000; }
   .tools button { background: none; border: 0; border-right: 2px solid #000; padding: 2px 12px; font-size: 12px; }
   .tools button:hover:not(:disabled), .tools button:focus-visible { background: #000; color: #fff; outline: none; }
   .tools button:disabled { opacity: .35; cursor: default; }
-  .tools span { flex: 1; min-width: 0; padding: 2px 12px; font-size: 11px; text-align: right; align-self: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .tools span { flex: 1; padding: 2px 12px; font-size: 12px; text-align: right; align-self: center; }
   .stage { flex: 1; min-height: 0; position: relative; background: #000; }
   .stage iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; background: #000; }
   .hint { position: absolute; inset: 0; display: grid; place-items: center; text-align: center; color: #fff; padding: 20px;
@@ -88,7 +87,6 @@
     <div class="body">
       <input class="search" id="q" type="search" placeholder="search..." aria-label="Search games" autocomplete="off">
       <ul class="list" id="list"></ul>
-      <div class="src" id="src"></div>
     </div>
   </section>
 
@@ -109,31 +107,19 @@
 
 <script>
 /* ==========================================================================
-   GAMES ARE LOADED AUTOMATICALLY FROM A GITHUB REPO.
-   Every folder in the repo that has an index.html becomes a game.
-   To add a game: push a new folder (with its index.html) to the repo. That's it.
+   ADD YOUR GAMES HERE. One entry per game:
+     title: name shown in the list
+     path:  the game's index.html, relative to this page (or a full URL)
+     tag:   short label (genre, engine, "jam", etc). Optional
+     desc:  one-line description. Optional
+   Put each game in its own folder, e.g. games/my-game/index.html, and
+   use only games you made or have permission to host.
    ========================================================================== */
-const REPO    = "genizy/web-port";  // owner/name of the repo that holds the games
-const BRANCH  = "main";                // falls back to "master" if "main" doesn't exist
-const DIR     = "";                    // subfolder holding the games ("" = repo root, or e.g. "games")
-const SERVE   = "githack";             // how game files are served:
-                                       //   "githack" = straight from the repo via raw.githack.com (no GitHub Pages needed, repo must be public)
-                                       //   "site"    = from this same website (only if the game folders are uploaded next to games.html)
-const SANDBOX = false;                // true = run games in a restricted frame. Leave false if a game hangs on its loading screen
-const BASE    = "";                    // optional: a full URL prefix that overrides SERVE, e.g. "https://games.example.com/"
-const EXCLUDE = ["about", "contact", "assets", "css", "js", "img", "images", "fonts", "node_modules"];  // folders to skip
+const GAMES = [
+  { title: "WEB FISHING",  path: "web-fishing/index.html",  tag: "puzzle", desc: "Replace me with your own game." },
 
-// Optional: nicer names/descriptions, keyed by folder name. Anything not listed gets a name made from its folder.
-const OVERRIDES = {
-  // "my-game": { title: "My Game", tag: "puzzle", desc: "Short description." },
-};
-
-// Optional: extra games that live somewhere else (not in the repo).
-const MANUAL = [
-  // { title: "Other Game", path: "https://example.com/game/", tag: "toy", desc: "Hosted elsewhere." },
 ];
 
-let GAMES = MANUAL.slice(), loading = true, err = "", srcMsg = "";
 const $ = id => document.getElementById(id);
 // history can be blocked (e.g. inside a preview frame), so never let it break the page
 const setHash = h => { try { history.replaceState(null, "", h); } catch (e) {} };
@@ -145,7 +131,7 @@ function renderList() {
   const shown = GAMES.filter(g => (g.title + " " + (g.tag || "") + " " + (g.desc || "")).toLowerCase().includes(term));
   const ul = $("list"); ul.textContent = "";
   $("count").textContent = GAMES.length + " game" + (GAMES.length === 1 ? "" : "s");
-  if (!shown.length) { const li = document.createElement("li"); li.className = "empty"; li.textContent = loading ? "loading from github..." : err || (GAMES.length ? "nothing matches." : "no games found in the repo yet."); ul.appendChild(li); return; }
+  if (!shown.length) { const li = document.createElement("li"); li.className = "empty"; li.textContent = GAMES.length ? "nothing matches." : "no games yet. edit the GAMES list in games.html."; ul.appendChild(li); return; }
   shown.forEach(g => {
     const li = document.createElement("li"), b = document.createElement("button");
     b.type = "button"; if (current === g) b.setAttribute("aria-current", "true");
@@ -164,10 +150,10 @@ function play(g) {
   current = g;
   const f = document.createElement("iframe");
   f.src = g.path; f.title = g.title;
-  f.allow = "fullscreen; gamepad; autoplay; clipboard-write; cross-origin-isolated; accelerometer; gyroscope";
-  if (SANDBOX) f.setAttribute("sandbox", "allow-scripts allow-same-origin allow-pointer-lock allow-forms allow-popups allow-modals allow-downloads");
+  f.allow = "fullscreen; gamepad; autoplay; clipboard-write";
+  f.setAttribute("sandbox", "allow-scripts allow-same-origin allow-pointer-lock allow-forms allow-popups allow-modals");
   $("stage").textContent = ""; $("stage").appendChild(f);
-  $("ptitle").textContent = g.title; $("pdesc").textContent = g.path; $("pdesc").title = g.path;
+  $("ptitle").textContent = g.title; $("pdesc").textContent = g.desc || "";
   document.title = g.title + " · lentanyl.com";
   setHash("#" + slug(g));
   setTools(true); renderList(); f.focus();
@@ -195,47 +181,9 @@ addEventListener("keydown", e => { if (!e.ctrlKey && !e.metaKey && !e.altKey && 
 const clock = $("clock"), tick = () => clock.textContent = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
 tick(); setInterval(tick, 1000);
 
-// find game folders (folders containing index.html) with one GitHub API call, cached for 10 minutes
-async function discover() {
-  const key = "games2:" + REPO + ":" + DIR;
-  try { const c = JSON.parse(localStorage.getItem(key)); if (c && Date.now() - c.t < 6e5) return c.v; } catch (e) {}
-  let used = BRANCH;
-  const get = br => fetch("https://api.github.com/repos/" + REPO + "/git/trees/" + br + "?recursive=1", { signal: AbortSignal.timeout(10000) });
-  let r = await get(BRANCH);
-  if (r.status === 404 && BRANCH === "main") { r = await get("master"); used = "master"; }
-  if (!r.ok) throw new Error(r.status === 403 ? "github rate limit hit. try again in a bit." : "couldn't load the repo (" + r.status + "). check REPO in games.html.");
-  const prefix = DIR ? DIR.replace(/^\/+|\/+$/g, "") + "/" : "";
-  const data = await r.json(), dirs = [];
-  for (const it of data.tree) {
-    if (it.type !== "blob" || !it.path.startsWith(prefix) || !it.path.endsWith("/index.html")) continue;
-    const d = it.path.slice(prefix.length, -11), segs = d.split("/");
-    if (!d || segs.length > 4 || segs.some(x => x[0] === "." || EXCLUDE.includes(x.toLowerCase()))) continue;
-    dirs.push(d);
-  }
-  dirs.sort((x, y) => x.split("/").length - y.split("/").length);
-  const found = [];
-  for (const d of dirs) if (!found.some(k => d.startsWith(k + "/"))) found.push(d);   // skip a game's own subfolders
-  if (data.truncated) found.truncated = true;
-  const out = { b: used, f: found, tr: !!data.truncated };
-  try { localStorage.setItem(key, JSON.stringify({ t: Date.now(), v: out })); } catch (e) {}
-  return out;
-}
-
 renderList();
-discover().then(({ b, f: folders, tr }) => {
-  srcMsg = REPO + "@" + b + " | " + folders.length + " game folder" + (folders.length === 1 ? "" : "s") + " found" + (tr ? " (repo too big, list may be incomplete)" : "");
-  const prefix = DIR ? DIR.replace(/^\/+|\/+$/g, "") + "/" : "";
-  const where = BASE ? BASE : SERVE === "githack" ? "https://raw.githack.com/" + REPO + "/" + b + "/" : "";
-  const auto = folders.map(f => Object.assign({
-    title: f.split("/").map(x => x.replace(/[-_.]+/g, " ").replace(/\b\w/g, c => c.toUpperCase())).join(" / "),
-    path: where + prefix + f + "/index.html"
-  }, OVERRIDES[f] || {}));
-  GAMES = MANUAL.concat(auto).sort((x, y) => x.title.localeCompare(y.title));
-}).catch(e => { err = e.name === "TimeoutError" ? "github didn't respond in time. reload to retry." : e.message; srcMsg = REPO + " | " + err; }).finally(() => {
-  loading = false; renderList(); $("src").textContent = srcMsg;
-  const start = GAMES.find(g => slug(g) === location.hash.slice(1));
-  if (start) play(start);   // deep links: games.html#game-title
-});
+const hash = location.hash.slice(1), start = GAMES.find(g => slug(g) === hash);
+if (start) play(start);   // deep links: games.html#game-title
 
 // subtle full-page Bayer dither overlay + faint vignette (static)
 (() => {
