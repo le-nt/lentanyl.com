@@ -111,11 +111,13 @@
    Every folder in the repo that has an index.html becomes a game.
    To add a game: push a new folder (with its index.html) to the repo. That's it.
    ========================================================================== */
-const REPO    = "genizy/web-port";  // owner/name of the repo that holds the games
+const REPO    = "le-nt/lentanyl.com";  // owner/name of the repo that holds the games
 const BRANCH  = "main";                // falls back to "master" if "main" doesn't exist
 const DIR     = "";                    // subfolder holding the games ("" = repo root, or e.g. "games")
-const BASE    = "";                    // "" = games are served from this same site. Otherwise a full URL prefix,
-                                       // e.g. "https://le-nt.github.io/other-repo/" (needs GitHub Pages on that repo)
+const SERVE   = "githack";             // how game files are served:
+                                       //   "githack" = straight from the repo via raw.githack.com (no GitHub Pages needed, repo must be public)
+                                       //   "site"    = from this same website (only if the game folders are uploaded next to games.html)
+const BASE    = "";                    // optional: a full URL prefix that overrides SERVE, e.g. "https://games.example.com/"
 const EXCLUDE = ["about", "contact", "assets", "css", "js", "img", "images", "fonts", "node_modules"];  // folders to skip
 
 // Optional: nicer names/descriptions, keyed by folder name. Anything not listed gets a name made from its folder.
@@ -192,11 +194,12 @@ tick(); setInterval(tick, 1000);
 
 // find game folders (folders containing index.html) with one GitHub API call, cached for 10 minutes
 async function discover() {
-  const key = "games:" + REPO + ":" + DIR;
+  const key = "games2:" + REPO + ":" + DIR;
   try { const c = JSON.parse(localStorage.getItem(key)); if (c && Date.now() - c.t < 6e5) return c.v; } catch (e) {}
+  let used = BRANCH;
   const get = br => fetch("https://api.github.com/repos/" + REPO + "/git/trees/" + br + "?recursive=1");
   let r = await get(BRANCH);
-  if (r.status === 404 && BRANCH === "main") r = await get("master");
+  if (r.status === 404 && BRANCH === "main") { r = await get("master"); used = "master"; }
   if (!r.ok) throw new Error(r.status === 403 ? "github rate limit hit. try again in a bit." : "couldn't load the repo (" + r.status + "). check REPO in games.html.");
   const prefix = DIR ? DIR.replace(/^\/+|\/+$/g, "") + "/" : "";
   const found = [];
@@ -205,16 +208,18 @@ async function discover() {
     const m = it.path.slice(prefix.length).match(/^([^/]+)\/index\.html$/);
     if (m && !EXCLUDE.includes(m[1].toLowerCase())) found.push(m[1]);
   }
-  try { localStorage.setItem(key, JSON.stringify({ t: Date.now(), v: found })); } catch (e) {}
-  return found;
+  const out = { b: used, f: found };
+  try { localStorage.setItem(key, JSON.stringify({ t: Date.now(), v: out })); } catch (e) {}
+  return out;
 }
 
 renderList();
-discover().then(folders => {
+discover().then(({ b, f: folders }) => {
   const prefix = DIR ? DIR.replace(/^\/+|\/+$/g, "") + "/" : "";
+  const where = BASE ? BASE : SERVE === "githack" ? "https://raw.githack.com/" + REPO + "/" + b + "/" : "";
   const auto = folders.map(f => Object.assign({
     title: f.replace(/[-_.]+/g, " ").replace(/\b\w/g, c => c.toUpperCase()),
-    path: BASE + prefix + f + "/index.html"
+    path: where + prefix + f + "/index.html"
   }, OVERRIDES[f] || {}));
   GAMES = MANUAL.concat(auto).sort((x, y) => x.title.localeCompare(y.title));
 }).catch(e => { err = e.message; }).finally(() => {
