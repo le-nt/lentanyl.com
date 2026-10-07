@@ -107,20 +107,28 @@
 
 <script>
 /* ==========================================================================
-   ADD YOUR GAMES HERE. One entry per game:
-     title: name shown in the list
-     path:  the game's index.html, relative to this page (or a full URL)
-     tag:   short label (genre, engine, "jam", etc). Optional
-     desc:  one-line description. Optional
-   Put each game in its own folder, e.g. games/my-game/index.html, and
-   use only games you made or have permission to host.
+   GAMES ARE LOADED AUTOMATICALLY FROM A GITHUB REPO.
+   Every folder in the repo that has an index.html becomes a game.
+   To add a game: push a new folder (with its index.html) to the repo. That's it.
    ========================================================================== */
-const GAMES = [
-  { title: "Example game one",  path: "games/example-one/index.html",  tag: "puzzle", desc: "Replace me with your own game." },
-  { title: "Example game two",  path: "games/example-two/index.html",  tag: "jam",    desc: "Add as many as you want." },
-  { title: "Example game three", path: "games/example-three/index.html", tag: "toy",   desc: "Each one opens in the player." }
+const REPO    = "genizy/web-port";  // owner/name of the repo that holds the games
+const BRANCH  = "main";                // falls back to "master" if "main" doesn't exist
+const DIR     = "";                    // subfolder holding the games ("" = repo root, or e.g. "games")
+const BASE    = "";                    // "" = games are served from this same site. Otherwise a full URL prefix,
+                                       // e.g. "https://le-nt.github.io/other-repo/" (needs GitHub Pages on that repo)
+const EXCLUDE = ["about", "contact", "assets", "css", "js", "img", "images", "fonts", "node_modules"];  // folders to skip
+
+// Optional: nicer names/descriptions, keyed by folder name. Anything not listed gets a name made from its folder.
+const OVERRIDES = {
+  // "my-game": { title: "My Game", tag: "puzzle", desc: "Short description." },
+};
+
+// Optional: extra games that live somewhere else (not in the repo).
+const MANUAL = [
+  // { title: "Other Game", path: "https://example.com/game/", tag: "toy", desc: "Hosted elsewhere." },
 ];
 
+let GAMES = MANUAL.slice(), loading = true, err = "";
 const $ = id => document.getElementById(id);
 // history can be blocked (e.g. inside a preview frame), so never let it break the page
 const setHash = h => { try { history.replaceState(null, "", h); } catch (e) {} };
@@ -132,7 +140,7 @@ function renderList() {
   const shown = GAMES.filter(g => (g.title + " " + (g.tag || "") + " " + (g.desc || "")).toLowerCase().includes(term));
   const ul = $("list"); ul.textContent = "";
   $("count").textContent = GAMES.length + " game" + (GAMES.length === 1 ? "" : "s");
-  if (!shown.length) { const li = document.createElement("li"); li.className = "empty"; li.textContent = GAMES.length ? "nothing matches." : "no games yet. edit the GAMES list in games.html."; ul.appendChild(li); return; }
+  if (!shown.length) { const li = document.createElement("li"); li.className = "empty"; li.textContent = loading ? "loading from github..." : err || (GAMES.length ? "nothing matches." : "no games found in the repo yet."); ul.appendChild(li); return; }
   shown.forEach(g => {
     const li = document.createElement("li"), b = document.createElement("button");
     b.type = "button"; if (current === g) b.setAttribute("aria-current", "true");
@@ -182,9 +190,38 @@ addEventListener("keydown", e => { if (!e.ctrlKey && !e.metaKey && !e.altKey && 
 const clock = $("clock"), tick = () => clock.textContent = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
 tick(); setInterval(tick, 1000);
 
+// find game folders (folders containing index.html) with one GitHub API call, cached for 10 minutes
+async function discover() {
+  const key = "games:" + REPO + ":" + DIR;
+  try { const c = JSON.parse(localStorage.getItem(key)); if (c && Date.now() - c.t < 6e5) return c.v; } catch (e) {}
+  const get = br => fetch("https://api.github.com/repos/" + REPO + "/git/trees/" + br + "?recursive=1");
+  let r = await get(BRANCH);
+  if (r.status === 404 && BRANCH === "main") r = await get("master");
+  if (!r.ok) throw new Error(r.status === 403 ? "github rate limit hit. try again in a bit." : "couldn't load the repo (" + r.status + "). check REPO in games.html.");
+  const prefix = DIR ? DIR.replace(/^\/+|\/+$/g, "") + "/" : "";
+  const found = [];
+  for (const it of (await r.json()).tree) {
+    if (it.type !== "blob" || !it.path.startsWith(prefix)) continue;
+    const m = it.path.slice(prefix.length).match(/^([^/]+)\/index\.html$/);
+    if (m && !EXCLUDE.includes(m[1].toLowerCase())) found.push(m[1]);
+  }
+  try { localStorage.setItem(key, JSON.stringify({ t: Date.now(), v: found })); } catch (e) {}
+  return found;
+}
+
 renderList();
-const hash = location.hash.slice(1), start = GAMES.find(g => slug(g) === hash);
-if (start) play(start);   // deep links: games.html#game-title
+discover().then(folders => {
+  const prefix = DIR ? DIR.replace(/^\/+|\/+$/g, "") + "/" : "";
+  const auto = folders.map(f => Object.assign({
+    title: f.replace(/[-_.]+/g, " ").replace(/\b\w/g, c => c.toUpperCase()),
+    path: BASE + prefix + f + "/index.html"
+  }, OVERRIDES[f] || {}));
+  GAMES = MANUAL.concat(auto).sort((x, y) => x.title.localeCompare(y.title));
+}).catch(e => { err = e.message; }).finally(() => {
+  loading = false; renderList();
+  const start = GAMES.find(g => slug(g) === location.hash.slice(1));
+  if (start) play(start);   // deep links: games.html#game-title
+});
 
 // subtle full-page Bayer dither overlay + faint vignette (static)
 (() => {
