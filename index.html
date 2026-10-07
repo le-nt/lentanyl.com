@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Your Name</title>
+<title>main site</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Covered+By+Your+Grace&display=swap" rel="stylesheet">
 <style>
@@ -96,7 +96,7 @@
 <div class="crt-fx" aria-hidden="true"></div>
 
 <nav class="menu">
-  <a class="logo" href="/">Your Name</a>
+  <a class="logo" href="/">lentanyl.com</a>
   <a href="/about">About</a>
   <a href="/contact">Contact</a>
   <button class="mi" id="inv" type="button" title="Invert colors (i)">Invert</button>
@@ -143,7 +143,7 @@
       <figure class="pic">
         <!-- Replace side.jpg next to this file to update. It gets dithered automatically. -->
         <img id="side-img" src="side.jpg" alt="" onerror="this.parentNode.classList.add('empty')">
-        <figcaption>Latest thing I made</figcaption>
+        <figcaption>By https://www.lunesaur.com/angel-gallery</figcaption>
       </figure>
     </div>
   </section>
@@ -261,19 +261,8 @@ if (isNaN(lm)) up.remove(); else up.textContent = "updated " + lm.toLocaleDateSt
 // quote of the day (same all day) + [another] for a random one. Edit the list: ["quote", "author"]
 (() => {
   const Q = [
-    ["The unexamined life is not worth living.", "Socrates"],
-    ["I am large, I contain multitudes.", "Walt Whitman"],
-    ["Simplicity, simplicity, simplicity!", "Henry David Thoreau"],
-    ["It is not that we have a short time to live, but that we waste a lot of it.", "Seneca"],
-    ["Hope is the thing with feathers.", "Emily Dickinson"],
-    ["A journey of a thousand miles begins with a single step.", "Laozi"],
-    ["Nothing great was ever achieved without enthusiasm.", "Ralph Waldo Emerson"],
-    ["We are all in the gutter, but some of us are looking at the stars.", "Oscar Wilde"],
-    ["The price of anything is the amount of life you exchange for it.", "Henry David Thoreau"],
-    ["Know thyself.", "Inscription at Delphi"],
-    ["The best way out is always through.", "Robert Frost"],
-    ["Well begun is half done.", "Aristotle"]
-  ];
+    ["Looking at Earth from afar, you realize it is too small for conflict and just big enough for cooperation.", "'Yuri Gagarin'"],
+     ];
   const cmd = document.getElementById("cmd"), qt = document.getElementById("qt"), qs = document.getElementById("qs"), by = document.getElementById("by");
   let timer, cur = -1;
   function show(i, label) {
